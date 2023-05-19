@@ -3,12 +3,13 @@ import path from "path";
 
 import { __prod__ } from "./constants";
 import { Post } from "./entities/post";
+import { User } from "./entities/user";
 
 const config: Options = {
   migrations: {
     path: path.join(__dirname, "./migrations"),
   },
-  entities: [Post],
+  entities: [Post, User],
   dbName: "lreddit",
   debug: !__prod__,
   type: "postgresql",
