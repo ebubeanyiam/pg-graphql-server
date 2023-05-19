@@ -1,39 +1,23 @@
 import express from "express";
-import { MikroORM } from "@mikro-orm/core";
-import { ApolloServer } from "apollo-server-express";
-import {
-  ApolloServerPluginLandingPageGraphQLPlayground,
-  ApolloServerPluginLandingPageDisabled,
-} from "apollo-server-core";
-import { buildSchema } from "type-graphql";
+import session from "express-session";
 
-import config from "./mikro-orm.config";
-import { __prod__ } from "./constants";
-
-import { HelloResolver } from "./resolvers/hello";
-import { PostResolver } from "./resolvers/post";
-import { UserResolver } from "./resolvers/user";
+import Server from "./services/apollo.service";
+import redisStore from "./services/redis.service";
 
 const main = async () => {
-  const orm = await MikroORM.init(config);
-  orm.getMigrator().up();
-
-  const { em } = orm;
-
   const app = express();
+  const server = await Server();
 
-  const server = new ApolloServer({
-    schema: await buildSchema({
-      resolvers: [HelloResolver, PostResolver, UserResolver],
-      validate: false,
-    }),
-    context: () => ({ em }),
-    plugins: [
-      process.env.NODE_ENV === "production"
-        ? ApolloServerPluginLandingPageDisabled()
-        : ApolloServerPluginLandingPageGraphQLPlayground(),
-    ],
-  });
+  app.use(
+    session({
+      name: "qid",
+      store: redisStore,
+      resave: false, // required: force lightweight session keep alive (touch)
+      saveUninitialized: false, // recommended: only save session when data exists
+      secret: "mysecretkey",
+    })
+  );
+
   await server.start();
   server.applyMiddleware({ app });
 
