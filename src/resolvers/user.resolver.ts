@@ -1,9 +1,23 @@
-import { Arg, Ctx, Field, InputType, Mutation, ObjectType } from "type-graphql";
+import {
+  Arg,
+  Ctx,
+  Field,
+  Query,
+  InputType,
+  Mutation,
+  ObjectType,
+} from "type-graphql";
 import { RequiredEntityData } from "@mikro-orm/core";
 import argon from "argon2";
 
 import { Context } from "../types";
 import { User } from "../entities/user";
+
+declare module "express-session" {
+  export interface SessionData {
+    userId: number;
+  }
+}
 
 @InputType()
 class UsernamePasswordInput {
@@ -32,15 +46,20 @@ class UserResponse {
 }
 
 export class UserResolver {
-  //   @Query(() => [Post])
-  //   posts(@Ctx() { em }: Context): Promise<Post[]> {
-  //     return em.find(Post, {});
-  //   }
+  @Query(() => User, { nullable: true })
+  async me(@Ctx() { em, req }: Context) {
+    if (!req.session.userId) {
+      return null;
+    }
+
+    const user = await em.findOne(User, { id: req.session.userId });
+    return user;
+  }
 
   @Mutation(() => User)
   async register(
     @Arg("args") { username, password: _password }: UsernamePasswordInput,
-    @Ctx() { em }: Context
+    @Ctx() { em, req }: Context
   ): Promise<User> {
     const password = await argon.hash(_password);
     const user = em.create(User, {
@@ -48,13 +67,16 @@ export class UserResolver {
       password,
     } as RequiredEntityData<User>);
     await em.persistAndFlush(user);
+
+    req.session.userId = user.id;
+
     return user;
   }
 
   @Mutation(() => UserResponse)
   async login(
     @Arg("args") { username, password }: UsernamePasswordInput,
-    @Ctx() { em }: Context
+    @Ctx() { em, req }: Context
   ): Promise<UserResponse> {
     const user = await em.findOne(User, { username });
     if (!user) {
@@ -78,6 +100,8 @@ export class UserResolver {
         ],
       };
     }
+
+    req.session.userId = user.id;
 
     return { user };
   }

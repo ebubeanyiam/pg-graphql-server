@@ -6,6 +6,7 @@ import {
 } from "apollo-server-core";
 import { buildSchema } from "type-graphql";
 
+import { Context } from "../types";
 import config from "../mikro-orm.config";
 import { PostResolver, UserResolver } from "../resolvers/index.resolver";
 
@@ -19,7 +20,7 @@ const Server = async () => {
       resolvers: [PostResolver, UserResolver],
       validate: false,
     }),
-    context: () => ({ em }),
+    context: ({ req, res }): Context => ({ em, req, res }),
     plugins: [
       process.env.NODE_ENV === "production"
         ? ApolloServerPluginLandingPageDisabled()
